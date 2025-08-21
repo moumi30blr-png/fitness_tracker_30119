@@ -1,0 +1,80 @@
+-- SQL Code for the Aadhaar System ERD Diagram
+
+-- Schema: Aadhaar_System
+CREATE SCHEMA IF NOT EXISTS Aadhaar_System;
+SET search_path TO Aadhaar_System;
+
+--
+-- Table structure for `Residents`
+-- This table stores core demographic and identifying information for each resident.
+-- The AadhaarNumber is the primary key and serves as the unique identifier.
+--
+CREATE TABLE Residents (
+    AadhaarNumber VARCHAR(12) PRIMARY KEY NOT NULL,
+    FullName VARCHAR(255) NOT NULL,
+    DateOfBirth DATE NOT NULL,
+    Gender CHAR(1) NOT NULL, -- M, F, O for Male, Female, Other
+    AddressLine1 VARCHAR(255),
+    AddressLine2 VARCHAR(255),
+    City VARCHAR(100),
+    State VARCHAR(100),
+    PinCode VARCHAR(10),
+    MobileNumber VARCHAR(15) UNIQUE,
+    EmailID VARCHAR(255) UNIQUE
+);
+
+--
+-- Table structure for `Biometrics`
+-- This table stores the sensitive biometric data. It is linked to the Residents table
+-- via the AadhaarNumber to maintain a one-to-one relationship. Biometric data is stored as a BLOB
+-- to accommodate images of fingerprints and irises.
+--
+CREATE TABLE Biometrics (
+    AadhaarNumber VARCHAR(12) PRIMARY KEY NOT NULL,
+    Fingerprints BLOB NOT NULL,
+    IrisScans BLOB NOT NULL,
+    FacialPhoto BLOB,
+    FOREIGN KEY (AadhaarNumber) REFERENCES Residents(AadhaarNumber)
+);
+
+--
+-- Table structure for `Authentication_Requests`
+-- This table logs every authentication attempt. It links an authentication event
+-- to a specific resident and a requesting agency.
+--
+CREATE TABLE Authentication_Requests (
+    RequestID SERIAL PRIMARY KEY,
+    AadhaarNumber VARCHAR(12) NOT NULL,
+    RequestingAgencyID INT NOT NULL,
+    RequestTimestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    RequestType VARCHAR(50) NOT NULL, -- e.g., 'Biometric', 'OTP', 'eKYC'
+    ResponseStatus BOOLEAN NOT NULL, -- TRUE for 'Yes', FALSE for 'No'
+    FOREIGN KEY (AadhaarNumber) REFERENCES Residents(AadhaarNumber)
+);
+
+--
+-- Table structure for `Requesting_Agencies`
+-- This table stores information about the government or private entities
+-- that make authentication requests.
+--
+CREATE TABLE Requesting_Agencies (
+    AgencyID SERIAL PRIMARY KEY,
+    AgencyName VARCHAR(255) NOT NULL,
+    AgencyType VARCHAR(100) NOT NULL, -- e.g., 'Government', 'Bank', 'Telecom'
+    ContactEmail VARCHAR(255) UNIQUE
+);
+
+--
+-- To relate Authentication_Requests to Requesting_Agencies
+-- The foreign key constraint is added here.
+--
+ALTER TABLE Authentication_Requests
+ADD CONSTRAINT fk_requesting_agency
+FOREIGN KEY (RequestingAgencyID) REFERENCES Requesting_Agencies(AgencyID);
+
+--
+-- Indexing for performance
+-- An index on AadhaarNumber in `Authentication_Requests` is crucial for fast lookups
+-- of a user's transaction history.
+--
+CREATE INDEX idx_auth_aadhaar ON Authentication_Requests(AadhaarNumber);
